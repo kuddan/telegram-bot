@@ -160,7 +160,7 @@ if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
     
     app.add_handler(CommandHandler("flush", force_flush_welcome))
-    app.add_handler(CommandHandler("رحب", force_flush_welcome))
+    app.add_handler(MessageHandler(filters.Regex(r'^(رحب|/رحب)$'), force_flush_welcome))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_members))
     app.add_handler(ChatMemberHandler(handle_chat_member_updated, ChatMemberHandler.CHAT_MEMBER))
     
