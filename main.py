@@ -36,7 +36,7 @@ def run_web_server():
     except Exception as e:
         print(f"Web server error: {e}")
 
-# --- 2. جلب التوكن الآمن وقاعدة البيانات ---
+# --- 2. جلب التوكن الآمن من متغيرات البيئة ---
 TOKEN = os.environ.get("BOT_TOKEN")
 
 DB_FILE = "pending_members.db"
