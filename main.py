@@ -119,9 +119,10 @@ async def process_new_user(user: User, chat_id: int, context: ContextTypes.DEFAU
         rows = add_user_to_db(user.id, mention)
         count = len(rows)
         
-        if count >= 5:
-            top_5 = rows[:5]
-            members_list = "\n".join([f"• {row[1]}" for row in top_5])
+        # التعديل هنا: الترحيب يتم التلقائي فور الوصول لـ 3 أعضاء
+        if count >= 3:
+            top_3 = rows[:3]
+            members_list = "\n".join([f"• {row[1]}" for row in top_3])
             
             welcome_text = (
                 f"مرحبا بكل الاعضاء الجدد المنضمين للساحات 🌺\n\n"
@@ -136,7 +137,7 @@ async def process_new_user(user: User, chat_id: int, context: ContextTypes.DEFAU
                 parse_mode="HTML"
             )
             
-            user_ids_to_remove = [row[0] for row in top_5]
+            user_ids_to_remove = [row[0] for row in top_3]
             clear_db_users(user_ids_to_remove)
 
 async def handle_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
