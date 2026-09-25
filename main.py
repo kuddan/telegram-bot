@@ -2,8 +2,9 @@ import sqlite3
 import os
 import logging
 import asyncio
-from threading import Thread
-from flask import Flask
+import threading
+import http.server
+import socketserver
 from telegram import Update, User
 from telegram.ext import (
     ApplicationBuilder,
@@ -14,21 +15,26 @@ from telegram.ext import (
     ContextTypes
 )
 
-# --- 1. خادم الويب لإبقاء البوت حياً ---
-web_app = Flask('')
+# --- 1. خادم ويب قياسي ومستقر لحل مشكلة Render 502 نهائياً ---
+class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"Bot is running 24/7!")
 
-@web_app.route('/')
-def home():
-    return "Bot is running 24/7!"
+    def log_message(self, format, *args):
+        pass
 
-def run_web():
+def run_web_server():
     port = int(os.environ.get("PORT", 8080))
-    web_app.run(host='0.0.0.0', port=port)
-
-def keep_alive():
-    t = Thread(target=run_web)
-    t.daemon = True
-    t.start()
+    socketserver.TCPServer.allow_reuse_address = True
+    try:
+        with socketserver.TCPServer(("0.0.0.0", port), HealthCheckHandler) as httpd:
+            print(f"=== خادم الويب يعمل بنجاح على المنفذ {port} ===")
+            httpd.serve_forever()
+    except Exception as e:
+        print(f"خطأ خادم الويب: {e}")
 
 # --- 2. إعدادات البوت وقاعدة البيانات ---
 TOKEN = "8821264603:AAF8vCfrMBBznVzqrk7EI781ecyJRDcqXF4"
@@ -111,7 +117,7 @@ async def process_new_user(user: User, chat_id: int, context: ContextTypes.DEFAU
         mention = user.mention_html()
         rows = add_user_to_db(user.id, mention)
         count = len(rows)
-        print(f"==> عضو جديد: {user.full_name} | المسجلين بالعداد: {count}/5")
+        print(f"==> عضو جديد تم تسجيله: {user.full_name} | الإجمالي الحالي: {count}/5")
         
         if count >= 5:
             top_5 = rows[:5]
@@ -146,7 +152,7 @@ async def handle_chat_member_updated(update: Update, context: ContextTypes.DEFAU
     old_status = result.old_chat_member.status
     new_status = result.new_chat_member.status
     
-    if old_status != new_status and new_status in ["member", "administrator"]:
+    if old_status in ["left", "kicked", "restricted"] and new_status in ["member", "administrator"]:
         await process_new_user(result.new_chat_member.user, update.effective_chat.id, context)
 
 async def force_flush_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -155,7 +161,9 @@ async def force_flush_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("لا يوجد أعضاء بانتظار الترحيب حالياً.")
 
 if __name__ == '__main__':
-    keep_alive()
+    t = threading.Thread(target=run_web_server, daemon=True)
+    t.start()
+
     init_db()
     app = ApplicationBuilder().token(TOKEN).build()
     
