@@ -15,7 +15,7 @@ from telegram.ext import (
     ContextTypes
 )
 
-# --- 1. خادم ويب قياسي ومستقر لحل مشكلة Render 502 نهائياً ---
+# --- 1. خادم ويب لتشغيل السيرفر على Render ---
 class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -31,13 +31,14 @@ def run_web_server():
     socketserver.TCPServer.allow_reuse_address = True
     try:
         with socketserver.TCPServer(("0.0.0.0", port), HealthCheckHandler) as httpd:
-            print(f"=== خادم الويب يعمل بنجاح على المنفذ {port} ===")
+            print(f"=== Web server running on port {port} ===")
             httpd.serve_forever()
     except Exception as e:
-        print(f"خطأ خادم الويب: {e}")
+        print(f"Web server error: {e}")
 
-# --- 2. إعدادات البوت وقاعدة البيانات ---
-TOKEN = "8821264603:AAF8vCfrMBBznVzqrk7EI781ecyJRDcqXF4"
+# --- 2. جلب التوكن الآمن وقاعدة البيانات ---
+TOKEN = os.environ.get("BOT_TOKEN")
+
 DB_FILE = "pending_members.db"
 LOCK = asyncio.Lock()
 
@@ -117,7 +118,6 @@ async def process_new_user(user: User, chat_id: int, context: ContextTypes.DEFAU
         mention = user.mention_html()
         rows = add_user_to_db(user.id, mention)
         count = len(rows)
-        print(f"==> عضو جديد تم تسجيله: {user.full_name} | الإجمالي الحالي: {count}/5")
         
         if count >= 5:
             top_5 = rows[:5]
@@ -165,6 +165,10 @@ if __name__ == '__main__':
     t.start()
 
     init_db()
+    
+    if not TOKEN:
+        raise ValueError("خطأ: لم يتم العثور على متغير البيئة BOT_TOKEN!")
+        
     app = ApplicationBuilder().token(TOKEN).build()
     
     app.add_handler(CommandHandler("flush", force_flush_welcome))
@@ -172,5 +176,4 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_members))
     app.add_handler(ChatMemberHandler(handle_chat_member_updated, ChatMemberHandler.CHAT_MEMBER))
     
-    print("=== البوت يعمل الآن بقاعدة بيانات SQLite وخادم ويب ===")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
