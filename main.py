@@ -31,7 +31,10 @@ def run_web_server():
     port = int(os.environ.get("PORT", 8080))
     socketserver.TCPServer.allow_reuse_address = True
     try:
-        with socketserver.TCPServer(("0.0.0.0", port), HealthCheckHandler) as httpd:
+        with socketserver.TCPServer(
+            ("0.0.0.0", port),
+            HealthCheckHandler
+        ) as httpd:
             print(f"=== Web server running on port {port} ===")
             httpd.serve_forever()
     except Exception as e:
@@ -141,10 +144,12 @@ async def process_new_user(
         rows = add_user_to_db(user.id, mention)
         count = len(rows)
 
-        # الترحيب التلقائي فور الوصول إلى 5 أعضاء
-        if count >= 5:
-            top_5 = rows[:5]
-            members_list = "\n".join([f"• {row[1]}" for row in top_5])
+        # الترحيب التلقائي فور الوصول إلى 10 أعضاء
+        if count >= 10:
+            top_10 = rows[:10]
+            members_list = "\n".join(
+                [f"• {row[1]}" for row in top_10]
+            )
 
             welcome_text = (
                 f"مرحبا بكل الاعضاء الجدد المنضمين للساحات 🌺\n\n"
@@ -159,7 +164,7 @@ async def process_new_user(
                 parse_mode="HTML"
             )
 
-            user_ids_to_remove = [row[0] for row in top_5]
+            user_ids_to_remove = [row[0] for row in top_10]
             clear_db_users(user_ids_to_remove)
 
 
